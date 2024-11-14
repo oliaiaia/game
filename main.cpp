@@ -19,7 +19,7 @@ std::vector<sf::RectangleShape> create_obstacles() {
         sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); // Создаем прямоугольник
         rectangle.setFillColor(sf::Color::Red); // Устанавливаем цвет
         // Устанавливаем позицию для каждого прямоугольника
-        rectangle.setPosition(1.f * (rand() % screen_height), 1.f * (rand() % screen_width));
+        rectangle.setPosition(1.f * (rand() % screen_width), 1.f * (rand() % screen_height));
         // Сохраняем прямоугольник в вектор
         obstacles[t] = rectangle;
     }
@@ -28,14 +28,14 @@ std::vector<sf::RectangleShape> create_obstacles() {
 
 std::vector<sf::RectangleShape> create_buns() {
     srand(time(0));
-    int amount_buns = rand() % 30 + 5;
+    int amount_buns = rand() % 1 + 5;
     std::vector<sf::RectangleShape> buns(amount_buns);
     for (int t = 0; t < amount_buns; t++) {
         sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); // Создаем прямоугольник
         rectangle.setFillColor(sf::Color::Green); // Устанавливаем цвет
 
         // Устанавливаем позицию для каждого прямоугольника
-        rectangle.setPosition(1.f * ((rand() + 150) % screen_height), 1.f * ((rand() + 150) % screen_width));
+        rectangle.setPosition(1.f * ((rand() + 150) % screen_width ), 1.f * ((rand() + 150) % screen_height));
         // Пример: размещаем в ряд с интервалом 50 пикселей
 
         // Сохраняем прямоугольник в вектор
@@ -66,6 +66,7 @@ collision chek_collision(std::vector<sf::RectangleShape> objects_without_collisi
     sf::Vector2f position = main_object.getPosition(); 
     //center
     sf::Vector2f center(position.x + main_object.getRadius(), position.y + main_object.getRadius()); 
+
     for (int t = 0; t < objects_without_collisions.size(); t++) {
 
         object_parameters[t].x = objects_without_collisions[t].getPosition().x + 0.5*objects_without_collisions[t].getSize().x;
@@ -96,20 +97,33 @@ int main() {
     circle.setFillColor(sf::Color::Yellow); // set circle color
 
     //settings for window game over
-    sf::Texture texture;
-    if (!texture.loadFromFile("../game_over.png")) {
+    sf::Texture game_over;
+    if (!game_over.loadFromFile("../game_over.png")) {
         return -1;
     }
-    sf::Sprite sprite(texture);
-        // Получаем размеры окна и текстуры
+    sf::Sprite sprite(game_over);
+    
+    sf::Texture win;
+    if (!win.loadFromFile("../win.png")) {
+        return -1;
+    }
+    sf::Sprite spriteWin(win);
+    
+
     sf::Vector2u windowSize = window.getSize();
-    sf::Vector2u textureSize = texture.getSize();
+    sf::Vector2u game_overSize = game_over.getSize();
+    sf::Vector2u winSize = win.getSize();
+    
 
     // Вычисляем позицию для центрирования
-    float xPos = (windowSize.x - textureSize.x) / 2.0f;
-    float yPos = (windowSize.y - textureSize.y) / 2.0f;
-    sprite.setPosition(xPos, yPos);
-
+    float xPosGameOver = (windowSize.x - game_overSize.x) / 2.0f;
+    float yPosGameOver = (windowSize.y - game_overSize.y) / 2.0f;
+    sprite.setPosition(xPosGameOver, yPosGameOver);
+    
+    float xPosWin= (windowSize.x - winSize.x) / 2.0f;
+    float yPosWin = (windowSize.y - winSize.y) / 2.0f;
+    spriteWin.setPosition(xPosWin, yPosWin);
+    
     circle.setPosition(0.f, 0.f); // set begin possision
     std::vector<sf::RectangleShape> obstacles = create_obstacles();
     std::vector<sf::RectangleShape> buns = create_buns();
@@ -180,23 +194,26 @@ int main() {
         auto last_size_buns = buns.size();
 
         collision current_state_buns = chek_collision(buns, circle);
+        buns = current_state_buns.objects_without_collisions;
+
         for (const auto &bun: current_state_buns.objects_without_collisions) {
-            buns = current_state_buns.objects_without_collisions;
 
             if(current_state_buns.flag) {
                 circle.setRadius(last_radius + 2.0);
             }
 
             window.draw(bun);
-
         }
 
-        if(last_radius > 0) {
+        if(last_radius > 0 && buns.size() > 0.0) {
             window.draw(circle);
         }
-        else {
+        else if (last_radius <= 0.0) {
             window.draw(sprite);
-            }
+        }
+        else {
+            window.draw(spriteWin);
+        }
         window.display();
 
     }
