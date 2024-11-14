@@ -11,16 +11,18 @@ using namespace std;
 const int screen_width = 1280;
 const int screen_height = 720;
 
+
+void resetGame(sf::CircleShape &circle, std::vector<sf::RectangleShape> &obstacles, std::vector<sf::RectangleShape> &buns);
+
+
 std::vector<sf::RectangleShape> create_obstacles() {
     srand(time(0));
-    int amount_obstacles = rand() % 30 + 5;
+    int amount_obstacles = rand() % 20 + 5;
     std::vector<sf::RectangleShape> obstacles(amount_obstacles);
     for (int t = 0; t < amount_obstacles; t++) {
-        sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); // Создаем прямоугольник
-        rectangle.setFillColor(sf::Color::Red); // Устанавливаем цвет
-        // Устанавливаем позицию для каждого прямоугольника
+        sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); 
+        rectangle.setFillColor(sf::Color::Red); 
         rectangle.setPosition(1.f * (rand() % screen_width), 1.f * (rand() % screen_height));
-        // Сохраняем прямоугольник в вектор
         obstacles[t] = rectangle;
     }
     return obstacles;
@@ -28,17 +30,15 @@ std::vector<sf::RectangleShape> create_obstacles() {
 
 std::vector<sf::RectangleShape> create_buns() {
     srand(time(0));
-    int amount_buns = rand() % 1 + 5;
+    int amount_buns = rand() % 20 + 5;
     std::vector<sf::RectangleShape> buns(amount_buns);
     for (int t = 0; t < amount_buns; t++) {
-        sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); // Создаем прямоугольник
-        rectangle.setFillColor(sf::Color::Green); // Устанавливаем цвет
+        sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); // create rectangle
+        rectangle.setFillColor(sf::Color::Green); // set color
 
-        // Устанавливаем позицию для каждого прямоугольника
+        // set posses for each rectangle
         rectangle.setPosition(1.f * ((rand() + 150) % screen_width ), 1.f * ((rand() + 150) % screen_height));
-        // Пример: размещаем в ряд с интервалом 50 пикселей
-
-        // Сохраняем прямоугольник в вектор
+        // save rectangle  to vector
         buns[t] = rectangle;
     }
     return buns;
@@ -52,6 +52,10 @@ struct two_dimensional_variable{
 struct collision{
     std::vector<sf::RectangleShape> objects_without_collisions;
     bool flag;
+};
+
+struct texturs {
+
 };
 
 
@@ -92,7 +96,9 @@ collision chek_collision(std::vector<sf::RectangleShape> objects_without_collisi
 }
 
 int main() {
+
     sf::RenderWindow window(sf::VideoMode(screen_width, screen_height), "Let's go!");
+
     sf::CircleShape circle(10.f); // 50.f - radius of circle
     circle.setFillColor(sf::Color::Yellow); // set circle color
 
@@ -115,7 +121,7 @@ int main() {
     sf::Vector2u winSize = win.getSize();
     
 
-    // Вычисляем позицию для центрирования
+    // finding center possesions
     float xPosGameOver = (windowSize.x - game_overSize.x) / 2.0f;
     float yPosGameOver = (windowSize.y - game_overSize.y) / 2.0f;
     sprite.setPosition(xPosGameOver, yPosGameOver);
@@ -128,14 +134,16 @@ int main() {
     std::vector<sf::RectangleShape> obstacles = create_obstacles();
     std::vector<sf::RectangleShape> buns = create_buns();
 
+
     while (window.isOpen()) {
         sf::Event event;
+
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
                 window.close();
         }
 
-        char direction_circle_move = 's';
+        char direction_circle_move;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
         {
             circle.move(-0.1f, 0.f);
@@ -160,6 +168,7 @@ int main() {
         window.clear();
 
         auto last_radius = circle.getRadius();
+
         //obstacles
         collision current_state_obstacles = chek_collision(obstacles, circle);
 
@@ -205,17 +214,41 @@ int main() {
             window.draw(bun);
         }
 
-        if(last_radius > 0 && buns.size() > 0.0) {
-            window.draw(circle);
-        }
-        else if (last_radius <= 0.0) {
-            window.draw(sprite);
-        }
-        else {
+        if (buns.empty()) {
             window.draw(spriteWin);
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
+                std::cout << "Enter is pressed - Restarting the game" << std::endl;
+                resetGame(circle, obstacles, buns); // Restart game
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+                std::cout << "Esc is pressed - Closing the game" << std::endl;
+                window.close(); // Close window
+            }
+        } else if (last_radius <= 0.0) {
+            window.draw(sprite);
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
+                std::cout << "Enter is pressed - Restarting the game" << std::endl;
+                resetGame(circle, obstacles, buns); // Restart game
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+                std::cout << "Esc is pressed - Closing the game" << std::endl;
+                window.close(); // Close window 
+            }
+        } else {
+            window.draw(circle); // Draw the circle (player) if the game continues
         }
+
         window.display();
 
     }
     return 0;
 }
+
+
+void resetGame(sf::CircleShape &circle, std::vector<sf::RectangleShape> &obstacles, std::vector<sf::RectangleShape> &buns) {
+    circle.setPosition(0.f, 0.f);
+    circle.setRadius(10.f);
+    obstacles = create_obstacles(); // Create new obstacles
+    buns = create_buns(); // Create new "buns"  
+}
+
