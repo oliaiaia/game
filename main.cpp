@@ -8,12 +8,12 @@ using namespace std;
 
 
 
-const int screen_width = 1800;
-const int screen_height = 1024;
+const int screen_width = 1280;
+const int screen_height = 720;
 
 std::vector<sf::RectangleShape> create_obstacles() {
     srand(time(0));
-    int amount_obstacles = rand() % 20 + 5;
+    int amount_obstacles = rand() % 30 + 5;
     std::vector<sf::RectangleShape> obstacles(amount_obstacles);
     for (int t = 0; t < amount_obstacles; t++) {
         sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); // Создаем прямоугольник
@@ -28,7 +28,7 @@ std::vector<sf::RectangleShape> create_obstacles() {
 
 std::vector<sf::RectangleShape> create_buns() {
     srand(time(0));
-    int amount_buns = rand() % 20 + 5;
+    int amount_buns = rand() % 30 + 5;
     std::vector<sf::RectangleShape> buns(amount_buns);
     for (int t = 0; t < amount_buns; t++) {
         sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); // Создаем прямоугольник
@@ -66,7 +66,6 @@ collision chek_collision(std::vector<sf::RectangleShape> objects_without_collisi
     sf::Vector2f position = main_object.getPosition(); 
     //center
     sf::Vector2f center(position.x + main_object.getRadius(), position.y + main_object.getRadius()); 
-
     for (int t = 0; t < objects_without_collisions.size(); t++) {
 
         object_parameters[t].x = objects_without_collisions[t].getPosition().x + 0.5*objects_without_collisions[t].getSize().x;
@@ -96,11 +95,20 @@ int main() {
     sf::CircleShape circle(10.f); // 50.f - radius of circle
     circle.setFillColor(sf::Color::Yellow); // set circle color
 
-    // sf::Texture texture;
-    // if (!texture.loadFromFile("/home/olia/dino.png")) {
-    // return -1;
-    // }
-    // sf::Sprite sprite(texture);
+    //settings for window game over
+    sf::Texture texture;
+    if (!texture.loadFromFile("../game_over.png")) {
+        return -1;
+    }
+    sf::Sprite sprite(texture);
+        // Получаем размеры окна и текстуры
+    sf::Vector2u windowSize = window.getSize();
+    sf::Vector2u textureSize = texture.getSize();
+
+    // Вычисляем позицию для центрирования
+    float xPos = (windowSize.x - textureSize.x) / 2.0f;
+    float yPos = (windowSize.y - textureSize.y) / 2.0f;
+    sprite.setPosition(xPos, yPos);
 
     circle.setPosition(0.f, 0.f); // set begin possision
     std::vector<sf::RectangleShape> obstacles = create_obstacles();
@@ -138,7 +146,6 @@ int main() {
         window.clear();
 
         auto last_radius = circle.getRadius();
-        
         //obstacles
         collision current_state_obstacles = chek_collision(obstacles, circle);
 
@@ -184,7 +191,12 @@ int main() {
 
         }
 
-        window.draw(circle);
+        if(last_radius > 0) {
+            window.draw(circle);
+        }
+        else {
+            window.draw(sprite);
+            }
         window.display();
 
     }
