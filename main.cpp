@@ -54,11 +54,6 @@ struct collision{
     bool flag;
 };
 
-struct texturs {
-
-};
-
-
 collision chek_collision(std::vector<sf::RectangleShape> objects_without_collisions, sf::CircleShape main_object) {
     
     collision current_object;
@@ -114,6 +109,12 @@ int main() {
         return -1;
     }
     sf::Sprite spriteWin(win);
+
+    sf::Texture buttons;
+    if (!buttons.loadFromFile("../press.png")) {
+        return -1;
+    }
+    sf::Sprite spritebuttons(buttons);
     
 
     sf::Vector2u windowSize = window.getSize();
@@ -129,6 +130,8 @@ int main() {
     float xPosWin= (windowSize.x - winSize.x) / 2.0f;
     float yPosWin = (windowSize.y - winSize.y) / 2.0f;
     spriteWin.setPosition(xPosWin, yPosWin);
+
+    spriteWin.setPosition(0.f, 0.f);
     
     circle.setPosition(0.f, 0.f); // set begin possision
     std::vector<sf::RectangleShape> obstacles = create_obstacles();
@@ -216,6 +219,7 @@ int main() {
 
         if (buns.empty()) {
             window.draw(spriteWin);
+            window.draw(spritebuttons);
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
                 std::cout << "Enter is pressed - Restarting the game" << std::endl;
                 resetGame(circle, obstacles, buns); // Restart game
@@ -226,6 +230,7 @@ int main() {
             }
         } else if (last_radius <= 0.0) {
             window.draw(sprite);
+            window.draw(spritebuttons);
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
                 std::cout << "Enter is pressed - Restarting the game" << std::endl;
                 resetGame(circle, obstacles, buns); // Restart game
