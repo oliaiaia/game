@@ -1,9 +1,12 @@
 #include <SFML/Graphics.hpp>
 #include <ctime>
 #include <iostream>
-using namespace std;
 #include <vector>
 #include <cmath>
+
+using namespace std;
+
+
 
 const int screen_width = 1800;
 const int screen_height = 1024;
@@ -15,11 +18,8 @@ std::vector<sf::RectangleShape> create_obstacles() {
     for (int t = 0; t < amount_obstacles; t++) {
         sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); // Создаем прямоугольник
         rectangle.setFillColor(sf::Color::Red); // Устанавливаем цвет
-
         // Устанавливаем позицию для каждого прямоугольника
         rectangle.setPosition(1.f * (rand() % screen_height), 1.f * (rand() % screen_width));
-        // Пример: размещаем в ряд с интервалом 50 пикселей
-
         // Сохраняем прямоугольник в вектор
         obstacles[t] = rectangle;
     }
@@ -113,33 +113,71 @@ int main() {
                 window.close();
         }
 
+        char direction_circle_move = 's';
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+        {
             circle.move(-0.1f, 0.f);
+            direction_circle_move = 'l';
+        }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+        {
             circle.move(0.1f, 0.f);
+            direction_circle_move = 'r';
+        }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+        {
             circle.move(0.f, -0.1f);
+            direction_circle_move = 'u';
+        }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+        {
             circle.move(0.f, 0.1f);
+            direction_circle_move = 'd';
+        }
 
         window.clear();
+
+        auto last_radius = circle.getRadius();
         
         //obstacles
-        for (const auto &obstacle: chek_collision(obstacles, circle).objects_without_collisions) {
+        collision current_state_obstacles = chek_collision(obstacles, circle);
+
+        for (const auto &obstacle: obstacles) {
             window.draw(obstacle);
-            obstacles = chek_collision(obstacles, circle).objects_without_collisions;
+
+            if(current_state_obstacles.flag) {
+                switch (direction_circle_move)
+                {
+                case 'l':
+                    circle.move(0.5f, 0.f);
+                    break;
+                case 'r':
+                    circle.move(-0.5f, 0.f);
+                    break;
+                case 'u':
+                    circle.move(0.f, 0.5f);
+                    break;
+                case 'd':
+                    circle.move(0.f, -0.5f);
+                    break;
+                default:
+                    break;
+                }
+
+                circle.setRadius(last_radius - 1.0);
+            }
+
         }
 
         //buns
-        auto last_radius = circle.getRadius();
         auto last_size_buns = buns.size();
 
-        for (const auto &bun: chek_collision(buns, circle).objects_without_collisions) {
-            collision current_state = chek_collision(buns, circle); 
-            buns = current_state.objects_without_collisions;
+        collision current_state_buns = chek_collision(buns, circle);
+        for (const auto &bun: current_state_buns.objects_without_collisions) {
+            buns = current_state_buns.objects_without_collisions;
 
-            if(current_state.flag) {
-                circle.setRadius(last_radius + 1);
+            if(current_state_buns.flag) {
+                circle.setRadius(last_radius + 2.0);
             }
 
             window.draw(bun);
