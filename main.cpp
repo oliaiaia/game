@@ -49,45 +49,40 @@ struct two_dimensional_variable{
     double y;
 };
 
-std::vector<sf::RectangleShape> chek_collision(std::vector<sf::RectangleShape> collisions_objects, sf::CircleShape main_object) {
-    std::vector<two_dimensional_variable> object_parameters(collisions_objects.size());
-    sf::Vector2f position = main_object.getPosition(); // верхний левый угол круга
-    sf::Vector2f center(position.x + main_object.getRadius(), position.y + main_object.getRadius()); // центр круга
-    for (int t = 0; t < collisions_objects.size(); t++) {
-
-        object_parameters[t].x = collisions_objects[t].getPosition().x + 0.5*collisions_objects[t].getSize().x;
-    //cout << "size: " << object_parameters[t].x << endl;
-        object_parameters[t].y = collisions_objects[t].getPosition().y + 0.5*collisions_objects[t].getSize().y;
-    //cout << "size: " << object_parameters[t].y << endl;
+std::vector<sf::RectangleShape> chek_collision(std::vector<sf::RectangleShape> objects_without_collisions, sf::CircleShape main_object) {
+    std::vector<two_dimensional_variable> object_parameters(objects_without_collisions.size());
+    //upper left corner
+    sf::Vector2f position = main_object.getPosition(); 
+    //center
+    sf::Vector2f center(position.x + main_object.getRadius(), position.y + main_object.getRadius()); 
+    for (int t = 0; t < objects_without_collisions.size(); t++) {
+        object_parameters[t].x = objects_without_collisions[t].getPosition().x + 0.5*objects_without_collisions[t].getSize().x;
+        object_parameters[t].y = objects_without_collisions[t].getPosition().y + 0.5*objects_without_collisions[t].getSize().y;
     }
-
-    // прописать отслеживание столкновений
-    for (int t = 0; t < collisions_objects.size(); t++) {
-        //cout << (pow((object_parameters[t].x -  center.x), 2) + pow((object_parameters[t].y -  center.y), 2)) << endl;
-        //cout << pow(collisions_objects[t].getSize().x / 2 + main_object.getRadius(), 2) << endl;
+    for (int t = 0; t < objects_without_collisions.size(); t++) {
 
         if( (pow((object_parameters[t].x -  center.x), 2) + pow((object_parameters[t].y -  center.y), 2)) 
-        <= pow(collisions_objects[t].getSize().x / 2 + main_object.getRadius(), 2)) {
-            cout << "TRUE" << endl;
-            collisions_objects.erase(collisions_objects.cbegin() + t);
+        <= pow(objects_without_collisions[t].getSize().x / 2 + main_object.getRadius(), 2)) {
+            //delete object with collision
+            objects_without_collisions.erase(objects_without_collisions.cbegin() + t);
         }
-        // else             cout << "FALSE" << endl;
 
     }
-    return collisions_objects;
+    return objects_without_collisions;
 }
 
 int main() {
     sf::RenderWindow window(sf::VideoMode(screen_width, screen_height), "Let's go!");
-    sf::CircleShape circle(10.f); // 50.f - радиус круга
-    circle.setFillColor(sf::Color::Yellow); // Устанавливаем цвет круга
+    sf::CircleShape circle(10.f); // 50.f - radius of circle
+    circle.setFillColor(sf::Color::Yellow); // set circle color
+    
     // sf::Texture texture;
     // if (!texture.loadFromFile("/home/olia/dino.png")) {
     // return -1;
     // }
     // sf::Sprite sprite(texture);
-    circle.setPosition(0.f, 0.f); // Устанавливаем начальную позицию спрайта
 
+    circle.setPosition(0.f, 0.f); // set begin possision
     std::vector<sf::RectangleShape> obstacles = create_obstacles();
     std::vector<sf::RectangleShape> buns = create_buns();
 
@@ -111,13 +106,14 @@ int main() {
 
         for (const auto &obstacle: chek_collision(obstacles, circle)) {
             window.draw(obstacle);
+            obstacles = chek_collision(obstacles, circle);
         }
         for (const auto &bun: chek_collision(buns, circle)) {
             window.draw(bun);
+            buns = chek_collision(buns, circle);
         }
         window.draw(circle);
         window.display();
     }
-
     return 0;
 }
