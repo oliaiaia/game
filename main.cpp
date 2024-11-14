@@ -49,33 +49,53 @@ struct two_dimensional_variable{
     double y;
 };
 
-std::vector<sf::RectangleShape> chek_collision(std::vector<sf::RectangleShape> objects_without_collisions, sf::CircleShape main_object) {
+struct collision{
+    std::vector<sf::RectangleShape> objects_without_collisions;
+    bool flag;
+};
+
+
+collision chek_collision(std::vector<sf::RectangleShape> objects_without_collisions, sf::CircleShape main_object) {
+    
+    collision current_object;
+    current_object.flag = false;
+    current_object.objects_without_collisions = objects_without_collisions;
+
     std::vector<two_dimensional_variable> object_parameters(objects_without_collisions.size());
     //upper left corner
     sf::Vector2f position = main_object.getPosition(); 
     //center
     sf::Vector2f center(position.x + main_object.getRadius(), position.y + main_object.getRadius()); 
+
     for (int t = 0; t < objects_without_collisions.size(); t++) {
+
         object_parameters[t].x = objects_without_collisions[t].getPosition().x + 0.5*objects_without_collisions[t].getSize().x;
         object_parameters[t].y = objects_without_collisions[t].getPosition().y + 0.5*objects_without_collisions[t].getSize().y;
+    
     }
+
     for (int t = 0; t < objects_without_collisions.size(); t++) {
 
         if( (pow((object_parameters[t].x -  center.x), 2) + pow((object_parameters[t].y -  center.y), 2)) 
         <= pow(objects_without_collisions[t].getSize().x / 2 + main_object.getRadius(), 2)) {
+
             //delete object with collision
             objects_without_collisions.erase(objects_without_collisions.cbegin() + t);
+            current_object.flag = true;
+            current_object.objects_without_collisions = objects_without_collisions;
+            return current_object;
         }
 
     }
-    return objects_without_collisions;
+
+    return current_object;
 }
 
 int main() {
     sf::RenderWindow window(sf::VideoMode(screen_width, screen_height), "Let's go!");
     sf::CircleShape circle(10.f); // 50.f - radius of circle
     circle.setFillColor(sf::Color::Yellow); // set circle color
-    
+
     // sf::Texture texture;
     // if (!texture.loadFromFile("/home/olia/dino.png")) {
     // return -1;
@@ -103,17 +123,32 @@ int main() {
             circle.move(0.f, 0.1f);
 
         window.clear();
-
-        for (const auto &obstacle: chek_collision(obstacles, circle)) {
+        
+        //obstacles
+        for (const auto &obstacle: chek_collision(obstacles, circle).objects_without_collisions) {
             window.draw(obstacle);
-            obstacles = chek_collision(obstacles, circle);
+            obstacles = chek_collision(obstacles, circle).objects_without_collisions;
         }
-        for (const auto &bun: chek_collision(buns, circle)) {
+
+        //buns
+        auto last_radius = circle.getRadius();
+        auto last_size_buns = buns.size();
+
+        for (const auto &bun: chek_collision(buns, circle).objects_without_collisions) {
+            collision current_state = chek_collision(buns, circle); 
+            buns = current_state.objects_without_collisions;
+
+            if(current_state.flag) {
+                circle.setRadius(last_radius + 1);
+            }
+
             window.draw(bun);
-            buns = chek_collision(buns, circle);
+
         }
+
         window.draw(circle);
         window.display();
+
     }
     return 0;
 }
