@@ -4,15 +4,67 @@
 #include <vector>
 #include <cmath>
 
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 using namespace std;
 
+/*
+Сервер:
+Управляет глобальным состоянием игры: расположением игроков, препятствий и объектов.
+Обрабатывает действия игроков (например, движение, столкновения) и отправляет обновлённое состояние клиентам.
+Клиент:
+Получает состояние игры от сервера.
+Отправляет серверу команды (например, движение, выстрелы).
 
+*/
 
 const int screen_width = 1280;
 const int screen_height = 720;
-
-
 void resetGame(sf::CircleShape &circle, std::vector<sf::RectangleShape> &obstacles, std::vector<sf::RectangleShape> &buns);
+
+// Преобразование sf::Vector2f в JSON
+json vector2f_to_json(const sf::Vector2f &vector) {
+    return {{"x", vector.x}, {"y", vector.y}};
+}
+
+// Преобразование sf::RectangleShape в JSON
+json rectangle_to_json(const sf::RectangleShape &rectangle) {
+    return {
+        {"position", vector2f_to_json(rectangle.getPosition())},
+        {"size", vector2f_to_json(rectangle.getSize())}
+    };
+}
+
+// Преобразование sf::CircleShape в JSON
+json circle_to_json(const sf::CircleShape &circle) {
+    return {
+        {"position", vector2f_to_json(circle.getPosition())},
+        {"radius", circle.getRadius()}
+    };
+}
+
+// Сериализация текущего состояния игры
+json serialize_game_state(const sf::CircleShape &circle, const std::vector<sf::RectangleShape> &obstacles, const std::vector<sf::RectangleShape> &buns) {
+    json state;
+
+    // Сериализация круга
+    state["circle"] = circle_to_json(circle);
+
+    // Сериализация препятствий
+    state["obstacles"] = json::array();
+    for (const auto &obstacle : obstacles) {
+        state["obstacles"].push_back(rectangle_to_json(obstacle));
+    }
+
+    // Сериализация плюшек
+    state["buns"] = json::array();
+    for (const auto &bun : buns) {
+        state["buns"].push_back(rectangle_to_json(bun));
+    }
+
+    return state;
+}
 
 
 std::vector<sf::RectangleShape> create_obstacles() {
@@ -49,16 +101,39 @@ struct two_dimensional_variable{
     double y;
 };
 
-struct collision{
-    std::vector<sf::RectangleShape> objects_without_collisions;
-    bool flag;
-};
-
-collision chek_collision(std::vector<sf::RectangleShape> objects_without_collisions, sf::CircleShape main_object) {
+bool chek_metting_obstacle(std::vector<sf::RectangleShape> objects_without_collisions, sf::CircleShape main_object) {
     
-    collision current_object;
-    current_object.flag = false;
-    current_object.objects_without_collisions = objects_without_collisions;
+    bool flag = false;
+
+    std::vector<two_dimensional_variable> object_parameters(objects_without_collisions.size());
+    //upper left corner
+    sf::Vector2f position = main_object.getPosition(); 
+    //center
+    sf::Vector2f center(position.x + main_object.getRadius(), position.y + main_object.getRadius()); 
+
+    for (int t = 0; t < objects_without_collisions.size(); t++) {
+
+        object_parameters[t].x = objects_without_collisions[t].getPosition().x + 0.5*objects_without_collisions[t].getSize().x;
+        object_parameters[t].y = objects_without_collisions[t].getPosition().y + 0.5*objects_without_collisions[t].getSize().y;
+    
+    }
+
+    for (int t = 0; t < objects_without_collisions.size(); t++) {
+
+        if( (pow((object_parameters[t].x -  center.x), 2) + pow((object_parameters[t].y -  center.y), 2)) 
+        <= pow(objects_without_collisions[t].getSize().x / 2 + main_object.getRadius(), 2)) {
+            flag = true;
+            return flag;
+        }
+
+    }
+
+    return flag;
+}
+
+bool chek_metting_bun(std::vector<sf::RectangleShape> &objects_without_collisions, sf::CircleShape main_object) {
+    
+    bool flag = false;
 
     std::vector<two_dimensional_variable> object_parameters(objects_without_collisions.size());
     //upper left corner
@@ -80,14 +155,13 @@ collision chek_collision(std::vector<sf::RectangleShape> objects_without_collisi
 
             //delete object with collision
             objects_without_collisions.erase(objects_without_collisions.cbegin() + t);
-            current_object.flag = true;
-            current_object.objects_without_collisions = objects_without_collisions;
-            return current_object;
+            flag = true;
+            return flag;
         }
 
     }
 
-    return current_object;
+    return flag;
 }
 
 int main() {
@@ -146,6 +220,10 @@ int main() {
                 window.close();
         }
 
+        json game_state = serialize_game_state(circle, obstacles, buns);
+        std::cout << game_state.dump(4) << std::endl; // Отладочный вывод состояния игры
+
+
         char direction_circle_move;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
         {
@@ -173,12 +251,12 @@ int main() {
         auto last_radius = circle.getRadius();
 
         //obstacles
-        collision current_state_obstacles = chek_collision(obstacles, circle);
-
+        //collision current_state_obstacles = chek_collision(obstacles, circle);
+        bool flag = chek_metting_obstacle(obstacles, circle);
         for (const auto &obstacle: obstacles) {
             window.draw(obstacle);
 
-            if(current_state_obstacles.flag) {
+            if(flag) {
                 switch (direction_circle_move)
                 {
                 case 'l':
@@ -205,12 +283,12 @@ int main() {
         //buns
         auto last_size_buns = buns.size();
 
-        collision current_state_buns = chek_collision(buns, circle);
-        buns = current_state_buns.objects_without_collisions;
+        // collision current_state_buns = chek_collision(buns, circle);
+        // buns = current_state_buns.objects_without_collisions;
+        bool flag_buns = chek_metting_bun(buns, circle);
+        for (const auto &bun: buns) {
 
-        for (const auto &bun: current_state_buns.objects_without_collisions) {
-
-            if(current_state_buns.flag) {
+            if(flag_buns) {
                 circle.setRadius(last_radius + 2.0);
             }
 
