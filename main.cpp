@@ -4,11 +4,13 @@
 #include <vector>
 #include <cmath>
 
+//https://github.com/nlohmann/json
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
 using namespace std;
 
+//мысль на будущее:
 /*
 Сервер:
 Управляет глобальным состоянием игры: расположением игроков, препятствий и объектов.
@@ -16,12 +18,248 @@ using namespace std;
 Клиент:
 Получает состояние игры от сервера.
 Отправляет серверу команды (например, движение, выстрелы).
-
 */
 
 const int screen_width = 1280;
 const int screen_height = 720;
+float velosity = 0.1;
+int level = 1;
+
+struct two_dimensional_variable{
+    double x;
+    double y;
+};
+
 void resetGame(sf::CircleShape &circle, std::vector<sf::RectangleShape> &obstacles, std::vector<sf::RectangleShape> &buns);
+// Преобразование sf::Vector2f в JSON
+json vector2f_to_json(const sf::Vector2f &vector);
+// Преобразование sf::RectangleShape в JSON
+json rectangle_to_json(const sf::RectangleShape &rectangle);
+// Преобразование sf::CircleShape в JSON
+json circle_to_json(const sf::CircleShape &circle);
+// Сериализация текущего состояния игры
+json serialize_game_state(const sf::CircleShape &circle, const std::vector<sf::RectangleShape> &obstacles, const std::vector<sf::RectangleShape> &buns);
+std::vector<sf::RectangleShape> create_obstacles();
+std::vector<sf::RectangleShape> create_buns();
+bool chek_metting_obstacle(std::vector<sf::RectangleShape> objects_without_collisions, sf::CircleShape main_object);
+bool chek_metting_bun(std::vector<sf::RectangleShape> &objects_without_collisions, sf::CircleShape main_object);
+void border_tracking(sf::CircleShape &circle);
+
+
+int main() {
+
+    sf::RenderWindow window(sf::VideoMode(screen_width, screen_height), "Let's go!");
+
+    sf::CircleShape circle(10.f);
+    circle.setFillColor(sf::Color::Yellow);
+
+    //settings for window game over
+    sf::Texture game_over;
+    if (!game_over.loadFromFile("../game_over.png")) {
+        return -1;
+    }
+    sf::Sprite sprite(game_over);
+    
+    sf::Texture win;
+    if (!win.loadFromFile("../win.png")) {
+        return -1;
+    }
+    sf::Sprite spriteWin(win);
+
+    sf::Texture buttons;
+    if (!buttons.loadFromFile("../press.png")) {
+        return -1;
+    }
+    sf::Sprite spritebuttons(buttons);
+    
+
+    sf::Vector2u windowSize = window.getSize();
+    sf::Vector2u game_overSize = game_over.getSize();
+    sf::Vector2u winSize = win.getSize();
+    
+
+    // finding center possesions
+    float xPosGameOver = (windowSize.x - game_overSize.x) / 2.0f;
+    float yPosGameOver = (windowSize.y - game_overSize.y) / 2.0f;
+    sprite.setPosition(xPosGameOver, yPosGameOver);
+    
+    float xPosWin= (windowSize.x - winSize.x) / 2.0f;
+    float yPosWin = (windowSize.y - winSize.y) / 2.0f;
+    spriteWin.setPosition(xPosWin, -10.f);
+
+
+    float xPosbuttons = (windowSize.x - buttons.getSize().x) / 2.0f;
+    float yPosbuttons = (windowSize.y - buttons.getSize().y) / 2.0f;
+    spritebuttons.setPosition(xPosbuttons, screen_height/2*1.f);
+    
+    circle.setPosition(0.f, 0.f); // set begin possision
+    std::vector<sf::RectangleShape> obstacles = create_obstacles();
+    std::vector<sf::RectangleShape> buns = create_buns();
+
+
+    while (window.isOpen()) {
+        sf::Event event;
+
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed)
+                window.close();
+        }
+
+        json game_state = serialize_game_state(circle, obstacles, buns);
+        // std::cout << game_state.dump(4) << std::endl; // Отладочный вывод состояния игры
+
+
+        char direction_circle_move;
+        border_tracking(circle);
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+        {
+            circle.move((-1)*velosity*1.0f, 0.f);
+            direction_circle_move = 'l';
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+        {
+            circle.move(velosity*1.0f, 0.f);
+            direction_circle_move = 'r';
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+        {
+            circle.move(0.f, (-1)*velosity*1.0f);
+            direction_circle_move = 'u';
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+        {
+            circle.move(0.f, velosity*1.0f);
+            direction_circle_move = 'd';
+        }
+
+        window.clear();
+
+        auto last_radius = circle.getRadius();
+
+        //obstacles
+        bool flag = chek_metting_obstacle(obstacles, circle);
+        for (const auto &obstacle: obstacles) {
+            window.draw(obstacle);
+
+            if(flag) {
+                flag = false;
+                if(velosity > 0.1) 
+                    velosity = velosity - 0.05;
+                switch (direction_circle_move)
+                {
+                case 'l':
+                    circle.move(0.5f, 0.f);
+                    break;
+                case 'r':
+                    circle.move(-0.5f, 0.f);
+                    break;
+                case 'u':
+                    circle.move(0.f, 0.5f);
+                    break;
+                case 'd':
+                    circle.move(0.f, -0.5f);
+                    break;
+                default:
+                    break;
+                }
+                circle.setRadius(last_radius - 1.0);
+            }
+
+        }
+
+        //buns
+        auto last_size_buns = buns.size();
+
+        // collision current_state_buns = chek_collision(buns, circle);
+        // buns = current_state_buns.objects_without_collisions;
+        bool flag_buns = chek_metting_bun(buns, circle);
+        for (const auto &bun: buns) {
+
+            if(flag_buns) {
+                flag_buns = false;
+                circle.setRadius(last_radius + 2.0);
+                if(velosity < 0.5)
+                    velosity = velosity + 0.02;
+            }
+
+            window.draw(bun);
+        }
+
+        if (buns.empty()) {
+            window.draw(spriteWin);
+            window.draw(spritebuttons);
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
+                std::cout << "Enter is pressed - Restarting the game" << std::endl;
+                velosity = 0.1;
+                resetGame(circle, obstacles, buns); // Restart game
+                level++;
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+                std::cout << "Esc is pressed - Closing the game" << std::endl;
+                window.close(); // Close window
+            }
+        } else if (last_radius <= 0.0) {
+            window.draw(sprite);
+            window.draw(spritebuttons);
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
+                std::cout << "Enter is pressed - Restarting the game" << std::endl;
+                resetGame(circle, obstacles, buns); // Restart game
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
+                std::cout << "Esc is pressed - Closing the game" << std::endl;
+                window.close(); // Close window 
+            }
+        } else {
+            window.draw(circle); // Draw the circle (player) if the game continues
+        }
+
+        window.display();
+
+    }
+    return 0;
+}
+
+
+
+
+
+std::vector<sf::RectangleShape> create_buns() {
+    srand(time(0));
+    // int amount_buns = rand() % 10 + 5 + level*2;
+    int amount_buns = 5 + level*2;
+    std::vector<sf::RectangleShape> buns(amount_buns);
+    for (int t = 0; t < amount_buns; t++) {
+        sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); // create rectangle
+        rectangle.setFillColor(sf::Color::Green); // set color
+
+        // set posses for each rectangle
+        rectangle.setPosition(1.f * ((rand() + 150) % screen_width ), 1.f * ((rand() + 150) % screen_height));
+        // save rectangle  to vector
+        buns[t] = rectangle;
+    }
+    return buns;
+}
+
+std::vector<sf::RectangleShape> create_obstacles() {
+    srand(time(0));
+    // int amount_obstacles = rand() % 10 + 5 + level*3;
+    int amount_obstacles =  5 + level*3;
+    std::vector<sf::RectangleShape> obstacles(amount_obstacles);
+    for (int t = 0; t < amount_obstacles; t++) {
+        sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); 
+        rectangle.setFillColor(sf::Color::Red); 
+        rectangle.setPosition(1.f * (rand() % screen_width), 1.f * (rand() % screen_height));
+        obstacles[t] = rectangle;
+    }
+    return obstacles;
+}
+
+void resetGame(sf::CircleShape &circle, std::vector<sf::RectangleShape> &obstacles, std::vector<sf::RectangleShape> &buns) {
+    circle.setPosition(0.f, 0.f);
+    circle.setRadius(10.f);
+    obstacles = create_obstacles(); // Create new obstacles
+    buns = create_buns(); // Create new "buns"  
+}
 
 // Преобразование sf::Vector2f в JSON
 json vector2f_to_json(const sf::Vector2f &vector) {
@@ -40,7 +278,8 @@ json rectangle_to_json(const sf::RectangleShape &rectangle) {
 json circle_to_json(const sf::CircleShape &circle) {
     return {
         {"position", vector2f_to_json(circle.getPosition())},
-        {"radius", circle.getRadius()}
+        {"radius", circle.getRadius()},
+        {"velosity", velosity}
     };
 }
 
@@ -67,39 +306,6 @@ json serialize_game_state(const sf::CircleShape &circle, const std::vector<sf::R
 }
 
 
-std::vector<sf::RectangleShape> create_obstacles() {
-    srand(time(0));
-    int amount_obstacles = rand() % 20 + 5;
-    std::vector<sf::RectangleShape> obstacles(amount_obstacles);
-    for (int t = 0; t < amount_obstacles; t++) {
-        sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); 
-        rectangle.setFillColor(sf::Color::Red); 
-        rectangle.setPosition(1.f * (rand() % screen_width), 1.f * (rand() % screen_height));
-        obstacles[t] = rectangle;
-    }
-    return obstacles;
-}
-
-std::vector<sf::RectangleShape> create_buns() {
-    srand(time(0));
-    int amount_buns = rand() % 20 + 5;
-    std::vector<sf::RectangleShape> buns(amount_buns);
-    for (int t = 0; t < amount_buns; t++) {
-        sf::RectangleShape rectangle(sf::Vector2f(10.f, 10.f)); // create rectangle
-        rectangle.setFillColor(sf::Color::Green); // set color
-
-        // set posses for each rectangle
-        rectangle.setPosition(1.f * ((rand() + 150) % screen_width ), 1.f * ((rand() + 150) % screen_height));
-        // save rectangle  to vector
-        buns[t] = rectangle;
-    }
-    return buns;
-}
-
-struct two_dimensional_variable{
-    double x;
-    double y;
-};
 
 bool chek_metting_obstacle(std::vector<sf::RectangleShape> objects_without_collisions, sf::CircleShape main_object) {
     
@@ -164,174 +370,17 @@ bool chek_metting_bun(std::vector<sf::RectangleShape> &objects_without_collision
     return flag;
 }
 
-int main() {
-
-    sf::RenderWindow window(sf::VideoMode(screen_width, screen_height), "Let's go!");
-
-    sf::CircleShape circle(10.f); // 50.f - radius of circle
-    circle.setFillColor(sf::Color::Yellow); // set circle color
-
-    //settings for window game over
-    sf::Texture game_over;
-    if (!game_over.loadFromFile("../game_over.png")) {
-        return -1;
+void border_tracking(sf::CircleShape &circle) {
+    if(circle.getPosition().y < 0) {
+        circle.move(0.f, velosity*1.0f);
     }
-    sf::Sprite sprite(game_over);
-    
-    sf::Texture win;
-    if (!win.loadFromFile("../win.png")) {
-        return -1;
+    if((circle.getPosition().y + 2*circle.getRadius()) >= screen_height) {
+        circle.move(0.f, (-1)*velosity*1.0f);
     }
-    sf::Sprite spriteWin(win);
-
-    sf::Texture buttons;
-    if (!buttons.loadFromFile("../press.png")) {
-        return -1;
+    if(circle.getPosition().x < 0) {
+        circle.move(velosity*1.0f, 0.f);
     }
-    sf::Sprite spritebuttons(buttons);
-    
-
-    sf::Vector2u windowSize = window.getSize();
-    sf::Vector2u game_overSize = game_over.getSize();
-    sf::Vector2u winSize = win.getSize();
-    
-
-    // finding center possesions
-    float xPosGameOver = (windowSize.x - game_overSize.x) / 2.0f;
-    float yPosGameOver = (windowSize.y - game_overSize.y) / 2.0f;
-    sprite.setPosition(xPosGameOver, yPosGameOver);
-    
-    float xPosWin= (windowSize.x - winSize.x) / 2.0f;
-    float yPosWin = (windowSize.y - winSize.y) / 2.0f;
-    spriteWin.setPosition(xPosWin, yPosWin);
-
-    spriteWin.setPosition(0.f, 0.f);
-    
-    circle.setPosition(0.f, 0.f); // set begin possision
-    std::vector<sf::RectangleShape> obstacles = create_obstacles();
-    std::vector<sf::RectangleShape> buns = create_buns();
-
-
-    while (window.isOpen()) {
-        sf::Event event;
-
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed)
-                window.close();
-        }
-
-        json game_state = serialize_game_state(circle, obstacles, buns);
-        std::cout << game_state.dump(4) << std::endl; // Отладочный вывод состояния игры
-
-
-        char direction_circle_move;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-        {
-            circle.move(-0.1f, 0.f);
-            direction_circle_move = 'l';
-        }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-        {
-            circle.move(0.1f, 0.f);
-            direction_circle_move = 'r';
-        }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-        {
-            circle.move(0.f, -0.1f);
-            direction_circle_move = 'u';
-        }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
-        {
-            circle.move(0.f, 0.1f);
-            direction_circle_move = 'd';
-        }
-
-        window.clear();
-
-        auto last_radius = circle.getRadius();
-
-        //obstacles
-        //collision current_state_obstacles = chek_collision(obstacles, circle);
-        bool flag = chek_metting_obstacle(obstacles, circle);
-        for (const auto &obstacle: obstacles) {
-            window.draw(obstacle);
-
-            if(flag) {
-                switch (direction_circle_move)
-                {
-                case 'l':
-                    circle.move(0.5f, 0.f);
-                    break;
-                case 'r':
-                    circle.move(-0.5f, 0.f);
-                    break;
-                case 'u':
-                    circle.move(0.f, 0.5f);
-                    break;
-                case 'd':
-                    circle.move(0.f, -0.5f);
-                    break;
-                default:
-                    break;
-                }
-
-                circle.setRadius(last_radius - 1.0);
-            }
-
-        }
-
-        //buns
-        auto last_size_buns = buns.size();
-
-        // collision current_state_buns = chek_collision(buns, circle);
-        // buns = current_state_buns.objects_without_collisions;
-        bool flag_buns = chek_metting_bun(buns, circle);
-        for (const auto &bun: buns) {
-
-            if(flag_buns) {
-                circle.setRadius(last_radius + 2.0);
-            }
-
-            window.draw(bun);
-        }
-
-        if (buns.empty()) {
-            window.draw(spriteWin);
-            window.draw(spritebuttons);
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
-                std::cout << "Enter is pressed - Restarting the game" << std::endl;
-                resetGame(circle, obstacles, buns); // Restart game
-            }
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
-                std::cout << "Esc is pressed - Closing the game" << std::endl;
-                window.close(); // Close window
-            }
-        } else if (last_radius <= 0.0) {
-            window.draw(sprite);
-            window.draw(spritebuttons);
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
-                std::cout << "Enter is pressed - Restarting the game" << std::endl;
-                resetGame(circle, obstacles, buns); // Restart game
-            }
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
-                std::cout << "Esc is pressed - Closing the game" << std::endl;
-                window.close(); // Close window 
-            }
-        } else {
-            window.draw(circle); // Draw the circle (player) if the game continues
-        }
-
-        window.display();
-
+    if((circle.getPosition().x + 2*circle.getRadius()) >= screen_width) {
+        circle.move((-1)*velosity*1.0f, 0.f);
     }
-    return 0;
 }
-
-
-void resetGame(sf::CircleShape &circle, std::vector<sf::RectangleShape> &obstacles, std::vector<sf::RectangleShape> &buns) {
-    circle.setPosition(0.f, 0.f);
-    circle.setRadius(10.f);
-    obstacles = create_obstacles(); // Create new obstacles
-    buns = create_buns(); // Create new "buns"  
-}
-
