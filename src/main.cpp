@@ -3,8 +3,6 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
-
-//https://github.com/nlohmann/json
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 

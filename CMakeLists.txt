@@ -9,12 +9,12 @@ find_package(nlohmann_json REQUIRED)
 
 
 # Добавить исполняемый файл
-add_executable(game main.cpp)
+add_executable(game src/main.cpp)
 # add_executable(server socketServer.cpp)
 # add_executable(client socketClient.cpp)
 
 # Подключить необходимые компоненты SFML
-target_link_libraries(game sfml-graphics sfml-window sfml-system)
+target_link_libraries(game sfml-graphics sfml-window sfml-system nlohmann_json)
 # target_link_libraries(server sfml-network sfml-system sfml-graphics sfml-window)
 # target_link_libraries(client sfml-network sfml-system sfml-graphics sfml-window)
 
